@@ -16,9 +16,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <format>
 #include <fstream>
+#include <ranges>
 #include <regex>
 #include <sstream>
+#include <string_view>
 
 void                                        checkAttributes( int                                                  line,
                                                              std::map<std::string, std::string> const &           attributes,
@@ -2319,14 +2322,15 @@ std::string VulkanHppGenerator::generateArgumentTemplates( std::vector<ParamData
 
 std::string VulkanHppGenerator::generateBaseTypes() const
 {
+  using namespace std::literals;
   assert( !m_baseTypes.empty() );
-  const std::string basetypesTemplate = R"(
+  auto constexpr basetypesTemplate = R"(
   //==================
   //=== BASE TYPEs ===
   //==================
 
-${basetypes}
-)";
+{}
+)"sv;
 
   std::string basetypes;
   for ( auto const & baseType : m_baseTypes )
@@ -2338,7 +2342,7 @@ ${basetypes}
     }
   }
 
-  return replaceWithMap( basetypesTemplate, { { "basetypes", basetypes } } );
+  return std::vformat( basetypesTemplate, std::make_format_args( basetypes ) ); 
 }
 
 std::string VulkanHppGenerator::generateBitmask( std::map<std::string, BitmaskData>::const_iterator bitmaskIt, std::string const & surroundingProtect ) const
@@ -11973,7 +11977,7 @@ void VulkanHppGenerator::readExtension( tinyxml2::XMLElement const * element )
         { "(VK_KHR_get_physical_device_properties2,VK_VERSION_1_1)+(VK_KHR_dynamic_rendering,VK_VERSION_1_3)",
           "VK_KHR_get_physical_device_properties2+VK_KHR_dynamic_rendering,VK_VERSION_1_1+VK_KHR_dynamic_rendering,VK_VERSION_1_3" }
       };
-      auto                     canonicalIt = complexToCanonicalDepends.find( attribute.second );
+      auto        canonicalIt = complexToCanonicalDepends.find( attribute.second );
       std::string depends;
       if ( canonicalIt == complexToCanonicalDepends.end() )
       {
