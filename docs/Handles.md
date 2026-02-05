@@ -11,23 +11,23 @@ To facilitate automatic resource management, Vulkan-Hpp provides two additional 
 - [`vk::SharedHandle`](#vksharedhandle)
 - [`vk::raii`](#vkraii)
   - [General usage](#general-usage)
-  - [First Steps](#first-steps)
-    - [00 Create a `vk::raii::Context`](#00-create-a-vkraiicontext)
-    - [01 Create a `vk::raii::Instance`](#01-create-a-vkraiiinstance)
-    - [02 Enumerate the `vk::raii::PhysicalDevices`](#02-enumerate-the-vkraiiphysicaldevices)
-    - [03 Create a `vk::raii::Device`](#03-create-a-vkraiidevice)
-    - [04 Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`](#04-create-a-vkraiicommandpool-and-vkraiicommandbuffers)
-    - [05 Create a `vk::raii::SwapchainKHR`](#05-create-a-vkraiiswapchainkhr)
-    - [06 Create a Depth Buffer](#06-create-a-depth-buffer)
-    - [07 Create a Uniform Buffer](#07-create-a-uniform-buffer)
-    - [08 Create a `vk::raii::PipelineLayout`](#08-create-a-vkraiipipelinelayout)
-    - [09 Create a `vk::raii::DescriptorPool` and `vk::raii::DescriptorSets`](#09-create-a-vkraiidescriptorpool-and-vkraiidescriptorsets)
-    - [10 Create a `vk::raii::RenderPass`](#10-create-a-vkraiirenderpass)
-    - [11 Create a `vk::raii::ShaderModule`](#11-create-a-vkraiishadermodule)
-    - [12 Create `vk::raii::Framebuffers`](#12-create-vkraiiframebuffers)
-    - [13 Initialize a Vertex Buffer](#13-initialize-a-vertex-buffer)
-    - [14 Initialize a Graphics Pipeline](#14-initialize-a-graphics-pipeline)
-    - [15 Drawing a Cube](#15-drawing-a-cube)
+  - [Step-by-step tutorial](#step-by-step-tutorial)
+    - [Create a `vk::raii::Context`](#create-a-vkraiicontext)
+    - [Create a `vk::raii::Instance`](#create-a-vkraiiinstance)
+    - [Enumerate the `vk::raii::PhysicalDevices`](#enumerate-the-vkraiiphysicaldevices)
+    - [Create a `vk::raii::Device`](#create-a-vkraiidevice)
+    - [Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`](#create-a-vkraiicommandpool-and-vkraiicommandbuffers)
+    - [Create a `vk::raii::SwapchainKHR`](#create-a-vkraiiswapchainkhr)
+    - [Create a Depth Buffer](#create-a-depth-buffer)
+    - [Create a Uniform Buffer](#create-a-uniform-buffer)
+    - [Create a `vk::raii::PipelineLayout`](#create-a-vkraiipipelinelayout)
+    - [Create a `vk::raii::DescriptorPool` and `vk::raii::DescriptorSets`](#create-a-vkraiidescriptorpool-and-vkraiidescriptorsets)
+    - [Create a `vk::raii::RenderPass`](#create-a-vkraiirenderpass)
+    - [Create a `vk::raii::ShaderModule`](#create-a-vkraiishadermodule)
+    - [Create `vk::raii::Framebuffers`](#create-vkraiiframebuffers)
+    - [Initialize a Vertex Buffer](#initialize-a-vertex-buffer)
+    - [Initialize a Graphics Pipeline](#initialize-a-graphics-pipeline)
+    - [Drawing a Cube](#drawing-a-cube)
   - [Conclusion](#conclusion)
 
 ## `vk::UniqueHandle`
@@ -226,9 +226,9 @@ buffer.bindMemory( *memory, memoryOffset );
 
 Note that `vk::raii::Buffer::bindMemory()`takes a `vk::DeviceMemory` as its first argument, not a `vk::raii::DeviceMemory`. From a vk::raii object you get to the corresponding vk object by just dereferencing the vk::raii object.
 
-### First Steps
+### Step-by-step tutorial
 
-#### 00 Create a `vk::raii::Context`
+#### Create a `vk::raii::Context`
 
 The very first step when using classes from the vk::raii namespace is to instantiate a `vk::raii::Context`. This class has no counterpart in either the vk namespace or the pure C-API of Vulkan. It is the handle to the few functions that are not bound to a `VkInstance` or a `VkDevice`:
 
@@ -244,7 +244,7 @@ To use any of those "global" functions, your code would look like that:
 uint32_t apiVersion = context.enumerateInstanceVersion();
 ```
 
-#### 01 Create a `vk::raii::Instance`
+#### Create a `vk::raii::Instance`
 
 To pass that information on to a `vk::raii::Instance`, its constructor gets a reference to that `vk::raii::Context`:
 
@@ -260,7 +260,7 @@ The `vk::raii::Instance` now holds all the instance-related functions. For examp
 std::vector<vk::PhysicalDeviceGroupProperties> physicalDeviceGroupProperties = instance.enumeratePhysicalDeviceGroups();
 ```
 
-#### 02 Enumerate the `vk::raii::PhysicalDevices`
+#### Enumerate the `vk::raii::PhysicalDevices`
 
 Enumerating the physical devices of an instance is slightly different in vk::raii namespace as you might be used to from the vk-namespace or the pure C-API. As there might be multiple physical devices attached, you would instantiate a `vk::raii::PhysicalDevices` (note the trailing 's' here!), which essentially is a `std::vector` of `vk::raii::PhysicalDevice`s (note the trailing 's' here!):
 
@@ -285,7 +285,7 @@ vk::raii::PhysicalDevice physicalDevice( std::move( physicalDevices[physicalDevi
 
 Note, that even though the actual `VkPhysicalDevice` owned by a `vk::raii::PhysicalDevice` is not a destructible resource, for consistency reasons a `vk::raii::PhysicalDevice` is a movable but not copyable object just like all the other vk::raii objects.
 
-#### 03 Create a `vk::raii::Device`
+#### Create a `vk::raii::Device`
 
 To create a `vk::raii::Device`, you just instantiate an object of that class:
 
@@ -305,7 +305,7 @@ for ( size_t i = 0; i < physicalDevices.size(); i++ )
 }
 ```
 
-#### 04 Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`
+#### Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`
 
 Creating a `vk::raii::CommandPool` is simply done by instantiating such an object:
 
@@ -349,7 +349,7 @@ There is one important thing to note, regarding command pool and command buffer 
 
 To handle that correctly, you have to make sure, that all `vk::raii::CommandBuffers` generated from a `vk::raii::CommandPool` are explicitly destroyed before that `vk::raii::CommandPool` is destroyed!
 
-#### 05 Create a `vk::raii::SwapchainKHR`
+#### Create a `vk::raii::SwapchainKHR`
 
 To initialize a swap chain, you first instantiate a `vk::raii::SwapchainKHR`:
 
@@ -379,7 +379,7 @@ for ( auto image : images )
 }
 ```
 
-#### 06 Create a Depth Buffer
+#### Create a Depth Buffer
 
 For a depth buffer, you need an image and some device memory and bind the memory to that image. That is, you first create a vk::raii::Image
 
@@ -419,7 +419,7 @@ imageViewCreateInfo.image = *depthImage;
 vk::raii::ImageView depthImageView( device, imageViewCreateInfo );
 ```
 
-#### 07 Create a Uniform Buffer
+#### Create a Uniform Buffer
 
 Initializing a uniform buffer is very similar to initializing a depth buffer as described above. You just instantiate a `vk::raii::Buffer` instead of a `vk::raii::Image`, and a `vk::raii::DeviceMemory`, and bind the memory to the buffer:
 
@@ -442,7 +442,7 @@ vk::raii::DeviceMemory uniformDeviceMemory( device, memoryAllocateInfo );
 uniformBuffer.bindMemory( *uniformDeviceMemory, 0 );
 ```
 
-#### 08 Create a `vk::raii::PipelineLayout`
+#### Create a `vk::raii::PipelineLayout`
 
 To initialize a Pipeline Layout you just have to instantiate a `vk::raii::DescriptorSetLayout` and a `vk::raii::PipelineLayout` using that `vk::raii::DescriptorSetLayout`:
 
@@ -455,7 +455,7 @@ vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo( {}, *descriptorSetLayout 
 vk::raii::PipelineLayout pipelineLayout( device, pipelineLayoutCreateInfo );
 ```
 
-#### 09 Create a `vk::raii::DescriptorPool` and `vk::raii::DescriptorSets`
+#### Create a `vk::raii::DescriptorPool` and `vk::raii::DescriptorSets`
 
 The Descriptor Set handling with `vk::raii` requires some special handling that is not needed when using the pure C-API or the vk-namespace!
 
@@ -488,7 +488,7 @@ And, again similar to the vk::raii::CommandBuffers handling described above, you
 vk::raii::DescriptorSet descriptorSet( std::move( descriptorSets[descriptorSetIndex] ) );
 ```
 
-#### 10 Create a `vk::raii::RenderPass`
+#### Create a `vk::raii::RenderPass`
 
 Creating a `vk::raii::RenderPass` is pretty simple, given you already have a meaningful `vk::RenderPassCreateInfo`:
 
@@ -497,7 +497,7 @@ Creating a `vk::raii::RenderPass` is pretty simple, given you already have a mea
 vk::raii::RenderPass renderPass( device, renderPassCreateInfo );
 ```
 
-#### 11 Create a `vk::raii::ShaderModule`
+#### Create a `vk::raii::ShaderModule`
 
 Again, creating a `vk::raii::ShaderModule` is simple, given a `vk::ShaderModuleCreateInfo` with some meaningful code:
 
@@ -506,7 +506,7 @@ Again, creating a `vk::raii::ShaderModule` is simple, given a `vk::ShaderModuleC
 vk::raii::ShaderModule shaderModule( device, shaderModuleCreateInfo );
 ```
 
-#### 12 Create `vk::raii::Framebuffers`
+#### Create `vk::raii::Framebuffers`
 
 If you have a `std::vector<vk::raii::ImageView>` as described in chapter 05 above, with one view per `VkImage` that you got from a `vk::raii::SwapchainKHR`; and one `vk::raii::ImageView` as described in chapter 06 above, which is a view on a `vk::raii::Image`, that is supposed to be a depth buffer, you can create a `vk::raii::Framebuffer` per swapchain image.
 
@@ -525,7 +525,7 @@ for ( auto const & imageView : swapchainImageViews )
 }
 ```
 
-#### 13 Initialize a Vertex Buffer
+#### Initialize a Vertex Buffer
 
 To initialize a vertex buffer, you essentially have to combine some of the pieces described in the chapters before. First, you need to create a `vk::raii::Buffer` and a `vk::raii::DeviceMemory` and bind them:
 
@@ -553,7 +553,7 @@ Later on, you can bind that vertex buffer to a command buffer:
 commandBuffer.bindVertexBuffer( 0, { *vertexBuffer }, { 0 } );
 ```
 
-#### 14 Initialize a Graphics Pipeline
+#### Initialize a Graphics Pipeline
 
 Initializing a graphics pipeline is not very raii-specific. Just instantiate it, provided you have a valid vk::GraphicsPipelineCreateInfo:
 
@@ -582,7 +582,7 @@ vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
 );
 ```
 
-#### 15 Drawing a Cube
+#### Drawing a Cube
 
 Finally, we get all those pieces together and draw a cube.
 
