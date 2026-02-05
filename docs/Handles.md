@@ -17,7 +17,7 @@ To facilitate automatic resource management, Vulkan-Hpp provides two additional 
   - [Step-by-step tutorial](#step-by-step-tutorial)
     - [Create a `vk::raii::Context`](#create-a-vkraiicontext)
     - [Create a `vk::raii::Instance`](#create-a-vkraiiinstance)
-    - [Enumerate the `vk::raii::PhysicalDevices`](#enumerate-the-vkraiiphysicaldevices)
+    - [Enumerate and filter `vk::raii::PhysicalDevices`](#enumerate-and-filter-vkraiiphysicaldevices)
     - [Create a `vk::raii::Device`](#create-a-vkraiidevice)
     - [Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`](#create-a-vkraiicommandpool-and-vkraiicommandbuffers)
     - [Create a `vk::raii::SwapchainKHR`](#create-a-vkraiiswapchainkhr)
@@ -201,9 +201,8 @@ For instance, with `std::unique_ptr`:
 std::unique_ptr<vk::raii::Device> pDevice = std::make_unique<vk::raii::Device>( *pPhysicalDevice, deviceCreateInfo );
 ```
 
-Most types in the `vk::raii` namespace directly contain and therefore own the underlying Vulkan resource.
+All types in the `vk::raii` namespace directly contain and therefore own the underlying Vulkan resource.
 These can be **moved**, but not copied.
-However, objects which cannot be explicitly destroyed by the user such as `VkPhysicalDevice` have `vk::raii` wrappers that can be copied; in this case, this is a shallow copy of the underlying Vulkan handle.
 
 In the rest of this guide, `vk::raii` objects are always instantiated directly on the stack.
 
@@ -249,91 +248,92 @@ Here, we will walk through an entire Vulkan application using `vk::raii` types, 
 
 #### Create a `vk::raii::Context`
 
-The very first step when using classes from the vk::raii namespace is to instantiate a `vk::raii::Context`. This class has no counterpart in either the vk namespace or the pure C-API of Vulkan. It is the handle to the few functions that are not bound to a `VkInstance` or a `VkDevice`:
+Unlike the rest of Vulkan or `Vulkan-Hpp`, the `vk::raii` namespace introduces a new class: `vk::raii::Context`.
+This provides a handle to several functions that are not bound to a `VkInstance` or a `VkDevice`:
 
 ```cpp
 // instantiate a vk::raii::Context
-vk::raii::Context context;
-```
+// No arguments are needed, as the context will load all the global function pointers on construction
+vk::raii::Context context();
 
-To use any of those "global" functions, your code would look like that:
-
-```cpp
 // get the API version, using that context
 uint32_t apiVersion = context.enumerateInstanceVersion();
 ```
 
 #### Create a `vk::raii::Instance`
 
-To pass that information on to a `vk::raii::Instance`, its constructor gets a reference to that `vk::raii::Context`:
+Then, to construct an instance of `vk::raii::Instance`, use the above-created object `context` and a `vk::InstanceCreateInfo`:
 
 ```cpp
-// instantiate a vk::raii::Instance, given a vk::raii::Context context and a vk::InstanceCreateInfo instanceCreateInfo
-vk::raii::Instance instance( context, instanceCreateInfo );
+// instantiate a vk::raii::Instance
+vk::raii::Instance instance( /* vk::raii::Context& */ context, /* vk::InstanceCreateInfo& */ instanceCreateInfo );
 ```
 
-The `vk::raii::Instance` now holds all the instance-related functions. For example, to get all the `vk::PhysicalDeviceGroupProperties` for an instance, your call would look like this:
+`instance` now holds all instance-related functions.
+For example, to get all `vk::PhysicalDeviceGroupProperties` for an instance:
 
 ```cpp
-// get all vk::PhysicalDeviceGroupProperties from a vk::raii::Instance instance
 std::vector<vk::PhysicalDeviceGroupProperties> physicalDeviceGroupProperties = instance.enumeratePhysicalDeviceGroups();
 ```
 
-#### Enumerate the `vk::raii::PhysicalDevices`
+#### Enumerate and filter `vk::raii::PhysicalDevices`
 
-Enumerating the physical devices of an instance is slightly different in vk::raii namespace as you might be used to from the vk-namespace or the pure C-API. As there might be multiple physical devices attached, you would instantiate a `vk::raii::PhysicalDevices` (note the trailing 's' here!), which essentially is a `std::vector` of `vk::raii::PhysicalDevice`s (note the trailing 's' here!):
+Enumerating the physical devices of an instance is slightly different in `vk::raii` namespace compared to the `vk` namespace or the C API.
+As there might be multiple physical devices attached, users should instantiate a `vk::raii::PhysicalDevices` (note the plural form of the word), which is a `std::vector` of **possibly multiple** `vk::raii::PhysicalDevice`s:
 
 ```cpp
-// enumerate the vk::raii::PhysicalDevices, given a vk::raii::Instance instance
 vk::raii::PhysicalDevices physicalDevices( instance );
 ```
 
-As vk::raii::PhysicalDevices is just a `std::vector<vk::raii::PhysicalDevice>`, you can access any specific `vk::raii:PhysicalDevice` by indexing into that `std::vector`:
+Just like any instance of `std::vector`, access any specific `vk::raii:PhysicalDevice` by indexing into that `std::vector`:
 
 ```cpp
-// get the vk::LayerProperties of the vk::raii::PhysicalDevice with index physicalDeviceIndex, given a vk::raii::PhysicalDevices physicalDevices
-std::vector<vk::LayerProperties> layerProperties = physicalDevices[physicalDeviceIndex].enumerateDeviceLayerProperties();
+std::vector<vk::LayerProperties> layerProperties = physicalDevices[/* size_t */ physicalDeviceIndex].enumerateDeviceLayerProperties();
 ```
 
-You can as well get one `vk::raii::PhysicalDevice` out of a `vk::raii::PhysicalDevices` like this:
+To select just _one_ `vk::raii::PhysicalDevice`, use `std::move` to take ownership:
 
 ```cpp
 // get the vk::raii::PhysicalDevice with index physicalDeviceIndex, given a vk::raii::PhysicalDevices physicalDevices object:
 vk::raii::PhysicalDevice physicalDevice( std::move( physicalDevices[physicalDeviceIndex] ) );
 ```
 
-Note, that even though the actual `VkPhysicalDevice` owned by a `vk::raii::PhysicalDevice` is not a destructible resource, for consistency reasons a `vk::raii::PhysicalDevice` is a movable but not copyable object just like all the other vk::raii objects.
-
 #### Create a `vk::raii::Device`
 
-To create a `vk::raii::Device`, you just instantiate an object of that class:
+Now, instantiate a `vk::raii::Device` using the above-created `vk::raii::PhysicalDevice` and a `vk::DeviceCreateInfo`:
 
 ```cpp
-// create a vk::raii::Device, given a vk::raii::PhysicalDevice physicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
-vk::raii::Device device( physicalDevice, deviceCreateInfo );
+vk::raii::Device device(
+  physicalDevice,      // vk::raii::PhysicalDevice&
+  deviceCreateInfo     // vk::DeviceCreateInfo&
+);
 ```
 
-For each instantiated `vk::raii::Device`, the device-specific Vulkan function pointers are resolved. That is, for multi-device programs, you automatically use the correct device-specific function pointers, and organizing a multi-device program is simplified:
+For each instantiated `vk::raii::Device`, device-specific Vulkan function pointers are resolved.
+That is, for multi-device programs, each instance automatically uses its device-specific function pointers, and organizing a multi-device program is straightforward:
 
 ```cpp
-// create a vk::raii::Device per vk::raii::PhysicalDevice, given a vk::raii::PhysicalDevices physicalDevices, and a corresponding array of vk::DeviceCreateInfo deviceCreateInfos
+// create a `vk::raii::Device` per `vk::raii::PhysicalDevice`, given a `vk::raii::PhysicalDevices physicalDevices`, and a corresponding array of `vk::DeviceCreateInfo deviceCreateInfos`
 std::vector<vk::raii::Device> devices;
 for ( size_t i = 0; i < physicalDevices.size(); i++ )
 {
-  devices.push_back( vk::raii::Device( physicalDevices[i], deviceCreateInfos[i] ) );
+  devices.emplace_back( physicalDevices[i], deviceCreateInfos[i] );
 }
 ```
 
 #### Create a `vk::raii::CommandPool` and `vk::raii::CommandBuffers`
 
-Creating a `vk::raii::CommandPool` is simply done by instantiating such an object:
+Instantiate a `vk::raii::CommandPool`:
 
 ```cpp
-// create a vk::raii::CommandPool, given a vk::raii::Device device and a vk::CommandPoolCreateInfo commandPoolCreateInfo
-vk::raii::CommandPool commandPool( device, commandPoolCreateInfo );
+vk::raii::CommandPool commandPool(
+  device,                    // vk::raii::Device&
+  commandPoolCreateInfo      // vk::CommandPoolCreateInfo&
+);
 ```
 
-As the number of `vk::raii::CommandBuffer`s to allocate from a `vk::raii::CommandPool` is given by the member `commandBufferCount` of a `vk::CommandBufferAllocateInfo` structure, it can't be instantiated as a single object. Instead you get a `vk::raii::CommandBuffers` (note the trailing 's' here!), which essentially is a `std::vector` of `vk::raii::CommandBuffer`s (note the trailing 's' here!).
+As the number of `vk::raii::CommandBuffer`s to allocate from a `vk::raii::CommandPool` is given by the member `commandBufferCount` of a `vk::CommandBufferAllocateInfo` structure, it can't be instantiated as a single object.
+Instead you get a `vk::raii::CommandBuffers` (note the plural form), which essentially is a `std::vector` of `vk::raii::CommandBuffer`s (note the trailing 's' here!).
 
 ```cpp
 // create a vk::raii::CommandBuffers, given a vk::raii::Device device and a vk::CommandBufferAllocateInfo commandBufferAllocateInfo
