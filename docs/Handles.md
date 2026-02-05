@@ -11,6 +11,9 @@ To facilitate automatic resource management, Vulkan-Hpp provides two additional 
 - [`vk::SharedHandle`](#vksharedhandle)
 - [`vk::raii`](#vkraii)
   - [General usage](#general-usage)
+    - [Construction](#construction)
+    - [Smart pointer management](#smart-pointer-management)
+    - [Member functions](#member-functions)
   - [Step-by-step tutorial](#step-by-step-tutorial)
     - [Create a `vk::raii::Context`](#create-a-vkraiicontext)
     - [Create a `vk::raii::Instance`](#create-a-vkraiiinstance)
@@ -127,12 +130,8 @@ Vulkan-Hpp will be extended to provide creation functions in the future.
 
 ## `vk::raii`
 
-In addition to `vk::UniqueHandles` and `vk::SharedHandles`, Vulkan-Hpp provides types for Vulkan handles which follow the RAII (Resource Acquisition Is Initialization) idiom, in the `vk::raii` namespace.
-This is a C++ layer on top of Vulkan-Hpp that provides a more object-oriented approach to Vulkan resource management.
-Types declared in the `vk::raii` namespace use all enum and structure wrappers initially defined in Vulkan-Hpp, but provide their own set of wrapper classes for the Vulkan handle types.
-
-While a `vk::UniqueHandle` mimics a handle wrapped by a `std::unique_ptr`, and a `vk::SharedHandle` mimics a handle wrapped by a `std::shared_ptr`, including parent information, a `vk::raii::Handle` is just a class that acquires the underlying C handle in its constructor and releases it in its destructor.
-This allows for a more object-oriented approach to Vulkan resource management.
+The `vk::raii` namespace, declared in `vulkan_raii.hpp` is an abstraction layer atop Vulkan-Hpp that follows the [RAII idiom](https://en.cppreference.com/w/cpp/language/raii.html).
+The types in this namespace uses all Vulkan-Hpp enumerations and wrappers, and additionally provides a new set of wrapper classes for the Vulkan handle types, which use idiomatic C++ that wraps the construction and destruction functions; C++ constructors are used to create the underlying Vulkan resource, and destructors are used to destroy it.
 
 `vk::UniqueHandle`, `vk::SharedHandle`, and `vk::Handle` types all use the same dispatcher, and these can be straightforwardly mixed.
 To use them, initialise a global dispatcher as described in [Usage](./Usage.md#extensions-and-per-device-function-pointers).
@@ -142,41 +141,45 @@ With multiple devices in the same application, this is very useful as `vk::raii`
 
 ### General usage
 
-As a simple example, instead of creating a `vk::Device`
+#### Construction
+
+To create a `vk::Device`, one might write:
 
 ```cpp
-// create a vk::Device, given a vk::PhysicalDevice physicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
+// create a vk::Device, given a `vk::PhysicalDevice physicalDevice` and a `vk::DeviceCreateInfo deviceCreateInfo`
 vk::Device device = physicalDevice.createDevice( deviceCreateInfo );
 ```
 
-and destroying it at some point
+and to destroy it:
 
 ```cpp
 // destroy a vk::Device
 device.destroy();
 ```
 
-you would create a `vk::raii::Device`
+In comparison, to create the corresponding `vk::raii::Device` handle, use the constructor:
 
 ```cpp
-// create a vk::raii::Device, given a vk::raii::PhysicalDevice physicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
+// create a vk::raii::Device, given a `vk::raii::PhysicalDevice physicalDevice` and a `vk::DeviceCreateInfo deviceCreateInfo`
 vk::raii::Device device( physicalDevice, deviceCreateInfo );
 ```
 
-That `vk::raii::Device` is automatically destroyed, when its scope is left.
+The created `device` object is automatically destroyed when execution leaves the the scope containing it.
 
-Alternatively, you can use a creation function to create a `vk::raii::Device`:
+Alternatively, use a creation function that returns the created object:
 
 ```cpp
-// create a vk::raii::Device, given a vk::raii::PhysicalDevice physicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
+// create a vk::raii::Device, given a `vk::raii::PhysicalDevice physicalDevice` and a `vk::DeviceCreateInfo deviceCreateInfo`
 vk::raii::Device device = physicalDevice.createDevice( deviceCreateInfo );
 ```
 
-Finally, if you have defined `VULKAN_HPP_NO_EXCEPTIONS` and compile for at least C++23, the constructors as described above are not available (they would potentially throw an exception which is not allowed then) but you have to use the construction functions. Those functions then do not return the created object, but a `std::expected<vk::raii::Object, vk::Result>`:
+If `VULKAN_HPP_NO_EXCEPTIONS` is defined, these creation functions match the signature and behaviour of other Vulkan-Hpp operations in [Usage § Error handling](./Usage.md/#error-handling).
+`VULKAN_HPP_USE_STD_EXPECTED` is also supported.
+
+For example, creating a `vk::raii::Device` might look like this:
 
 ```cpp
-// create a vk::raii::Device, given a vk::raii::PhysicalDevice physicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
-// when VULKAN_HPP_NO_EXCEPTIONS is defined and your using at least C++23
+// when `VULKAN_HPP_NO_EXCEPTIONS` and `VULKAN_HPP_USE_STD_EXPECTED` are defined and C++23 is available
 auto deviceExpected = physicalDevice.createDevice( deviceCreateInfo );
 if ( deviceExpected.has_value() )
 {
@@ -184,49 +187,65 @@ if ( deviceExpected.has_value() )
 }
 ```
 
-In the code snippets in this text, I will consistently use the constructor-approach.
+> [!NOTE]
+> In this guide, the throwing constructors are used.
 
-Other than the `vk::Device`, you can assign the `vk::raii::Device` to a smart pointer:
+#### Smart pointer management
 
-```cpp
-// create a smart-pointer to a vk::raii::Device, given a smart-pointer to a vk::raii::PhysicalDevice pPhysicalDevice and a vk::DeviceCreateInfo deviceCreateInfo
-std::unique_ptr<vk::raii::Device> pDevice;
-pDevice = std::make_unique<vk::raii::Device>( *pPhysicalDevice, deviceCreateInfo );
-```
+A `vk::raii::Device` object may be used directly as references, managed by C++ smart pointers, or other custom data structures.
+They may even be allocated on the heap with `new`, and assigned to raw pointers.
 
-Note that the vk::raii objects own the actual Vulkan resource. Therefore, all vk::raii objects that own destructable resources are just movable, but not copyable. Therefore, a few vk::raii objects, like vk::raii::PhysicalDevice are copyable as well.
-
-For simplicity, in the rest of this document a vk::raii object is always directly instantiated on the stack. Obviously, that's not essential. You could assign them as well to a std::unique_ptr, a std::shared_ptr, or any other smart pointer or object managing data structure. And you can even assign them to a dumb pointer by using the new operator.
-
-Similar to a `vk::Device`, a `vk::raii::Device` provides the functions related to that class. But other than the `vk::Device`, you don't need to provide a device-specific dispatcher to those functions to get multi-device functionality. That's already managed by the `vk::raii::Device`.
-
-That is, calling a device-related function is identical for both cases:
+For instance, with `std::unique_ptr`:
 
 ```cpp
-// call waitIdle from a vk::Device
-device.waitIdle();
-
-// call waitIdle from a vk::raii::Device
-device.waitIdle();
+std::unique_ptr<vk::raii::Device> pDevice = std::make_unique<vk::raii::Device>( *pPhysicalDevice, deviceCreateInfo );
 ```
 
-vk::raii goes one step further. In the vk namespace, most of the functions are members of `vk::Device`. In the vk::raii namespace functions strongly related to a non-dispatchable handle are members of the corresponding vk::raii object. For example, to bind memory to a buffer, in vk namespace you write
+Most types in the `vk::raii` namespace directly contain and therefore own the underlying Vulkan resource.
+These can be **moved**, but not copied.
+However, objects which cannot be explicitly destroyed by the user such as `VkPhysicalDevice` have `vk::raii` wrappers that can be copied; in this case, this is a shallow copy of the underlying Vulkan handle.
+
+In the rest of this guide, `vk::raii` objects are always instantiated directly on the stack.
+
+> [!NOTE]
+> For the most idiomatic usage, pass `vk::raii` objects as references (possibly `const`).
+
+#### Member functions
+
+Parallel to `vk::Handle`, `vk::raii::Handle` types provide member functions related to that class.
+For instance, considering the wrappers and Vulkan-Hpp equivalents for calling `vkDeviceWaitIdle` for a `VkDevice`:
 
 ```cpp
-// bind vk::DeviceMemory memory to a vk::Buffer buffer, given vk::DeviceSize memoryOffset
-device.bindBufferMemory( buffer, memory, memoryOffset );
+// call `waitIdle` from a `vk::Device`
+myVkDevice.waitIdle();
+
+// call `waitIdle` from a `vk::raii::Device`
+myVkRaiiDevice.waitIdle();
 ```
 
-In vk::raii namespace you write
+Additionally, `vk::raii` types have stronger correlations between handles and operations that can be performed on them.
+In the `vk` namespace, most functions are members of `vk::Device`.
+In the `vk::raii` namespace, functions strongly related to a non-dispatchable handle are members of the corresponding `vk::raii` object.
+
+For example, compare binding some memory to a `vk::Buffer`...
 
 ```cpp
-// bind vk::raii::DeviceMemory memory to a vk::raii::Buffer buffer, given vk::DeviceSize memoryOffset
-buffer.bindMemory( *memory, memoryOffset );
+device.bindBufferMemory( /* vk::Buffer */ buffer, /* vk::DeviceMemory */ memory, /* vk::DeviceSize */ memoryOffset );
 ```
 
-Note that `vk::raii::Buffer::bindMemory()`takes a `vk::DeviceMemory` as its first argument, not a `vk::raii::DeviceMemory`. From a vk::raii object you get to the corresponding vk object by just dereferencing the vk::raii object.
+... And a `vk::raii::Buffer`:
+
+```cpp
+buffer.bindMemory( /* vk::DeviceMemory */ *memory, /* vk::DeviceSize */ memoryOffset );
+```
+
+> [!NOTE]
+> `vk::raii::Buffer::bindMemory()` accepts an instance of `vk::DeviceMemory` as its first argument, and **not** `vk::raii::DeviceMemory`.
+> Use `operator*()` to access the corresponding `vk::DeviceMemory` object from an instance of `vk::raii::DeviceMemory`.
 
 ### Step-by-step tutorial
+
+Here, we will walk through an entire Vulkan application using `vk::raii` types, from instance creation to drawing a cube.
 
 #### Create a `vk::raii::Context`
 
