@@ -33,6 +33,15 @@ if( NOT DEFINED CMAKE_CXX_STANDARD AND PROJECT_IS_TOP_LEVEL )
 	set( CMAKE_CXX_STANDARD 11 )
 endif()
 
+if( COMMAND cmake_instrumentation )
+	cmake_instrumentation(
+		API_VERSION 1
+		DATA_VERSION 1.1
+		HOOKS postGenerate postBuild postCMakeBuild
+		OPTIONS compileTrace trace
+	)
+endif()
+
 # all the options for this project
 option( VULKAN_HPP_PRECOMPILE "Precompile vulkan.hpp and vulkan_raii.hpp for sample builds" ON )
 option( VULKAN_HPP_RUN_GENERATOR "Run the HPP generator" OFF )
