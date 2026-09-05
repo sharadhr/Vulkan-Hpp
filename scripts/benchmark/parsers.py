@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Sequence, Set as AbstractSet
 import json
 from pathlib import Path
@@ -9,45 +10,38 @@ from .models import TargetExecution, TargetTypeBreakdown, to_delta
 
 def classify_target_output(output_path: str) -> str:
     """categorize a target output path into compilation, scan, dyndep, link, or custom."""
-    normalized_path = output_path.replace("\\", "/")
-    if normalized_path.endswith((".o", ".obj", ".pcm", ".bmi", ".pch")):
-        return "compilation"
-    if normalized_path.endswith(".ddi"):
-        return "scan"
-    if normalized_path.endswith((".dd", ".modmap", "CXXModules.json")):
-        return "dyndep"
-    if normalized_path.endswith(".a") or "/" not in normalized_path or "." not in Path(normalized_path).name:
-        return "link"
-    return "custom"
+    target_path = Path(output_path)
+    # CMake exposes only output paths in .ninja_log, so phase attribution relies on its stable suffixes.
+    match target_path.name:
+        case "CXXModules.json":
+            return "dyndep"
+        case _:
+            match target_path.suffix.lower():
+                case ".o" | ".obj" | ".pcm" | ".bmi" | ".pch":
+                    return "compilation"
+                case ".ddi":
+                    return "scan"
+                case ".dd" | ".modmap":
+                    return "dyndep"
+                case ".a" | ".dll" | ".dylib" | ".exe" | ".lib" | ".so":
+                    return "link"
+                case _ if target_path.parent == Path(".") or not target_path.suffix:
+                    return "link"
+                case _:
+                    return "custom"
 
 
 def extract_target_type_breakdown(targets: Sequence[TargetExecution]) -> TargetTypeBreakdown:
     """aggregate target executions into counts by phase category."""
-    compilations = 0
-    scans = 0
-    dynamic_dependencies = 0
-    links = 0
-    custom_commands = 0
-
-    for target in targets:
-        category = classify_target_output(target.output)
-        if category == "compilation":
-            compilations += 1
-        elif category == "scan":
-            scans += 1
-        elif category == "dyndep":
-            dynamic_dependencies += 1
-        elif category == "link":
-            links += 1
-        else:
-            custom_commands += 1
+    # Keep every executed Ninja edge: modules add scan and dyndep work that compile-only totals would hide.
+    counts = Counter(classify_target_output(target.output) for target in targets)
 
     return TargetTypeBreakdown(
-        compilations=compilations,
-        scans=scans,
-        dynamic_dependencies=dynamic_dependencies,
-        links=links,
-        custom_commands=custom_commands,
+        compilations=counts["compilation"],
+        scans=counts["scan"],
+        dynamic_dependencies=counts["dyndep"],
+        links=counts["link"],
+        custom_commands=counts["custom"],
     )
 
 
@@ -56,6 +50,7 @@ def snapshot_ninja_build_log(log_path: Path) -> set[str]:
     if not log_path.is_file():
         return set()
 
+    # Preserve full records, including timestamps and command hashes, to distinguish a rebuilt output.
     with open(log_path, "r", encoding="utf-8", errors="replace") as log_file:
         return {stripped for raw_line in log_file if (stripped := raw_line.strip()) and not stripped.startswith("#")}
 
@@ -74,6 +69,7 @@ def parse_ninja_build_log(
     if not log_path.is_file():
         return []
 
+    # A record diff survives Ninja's periodic log compaction, unlike a positional line offset.
     seen_entries = previous_entries if previous_entries is not None else frozenset()
     target_executions: list[TargetExecution] = []
     with open(log_path, "r", encoding="utf-8", errors="replace") as log_file:
@@ -128,6 +124,7 @@ def parse_clang_ftime_trace(trace_path: Path) -> tuple[TimeDelta, TimeDelta, Tim
     frontend_microseconds = 0.0
     backend_microseconds = 0.0
 
+    # -ftime-trace can contain nested events; only complete-duration events are additive per translation unit.
     for event in events:
         if not isinstance(event, dict) or event.get("ph") != "X":
             continue
@@ -215,6 +212,7 @@ def parse_cmake_instrumentation_trace(
     compile_step_count = 0
     collected_trace_files: list[Path] = []
 
+    # Instrumentation includes setup and dependency discovery; count only compiler invocations as compiler time.
     for event in events:
         if not isinstance(event, dict):
             continue
@@ -234,7 +232,7 @@ def parse_cmake_instrumentation_trace(
 
         outputs = arguments.get("outputs", [])
         command_string = arguments.get("command", "")
-        # skip module dependency scanning passes
+        # Scans construct the module graph but do not compile a source translation unit.
         if "clang-scan-deps" in command_string or (outputs and outputs[0].endswith(".ddi")):
             continue
 
