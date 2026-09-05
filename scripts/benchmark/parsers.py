@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Set as AbstractSet
 import json
 from pathlib import Path
 from typing import Any
@@ -51,26 +51,35 @@ def extract_target_type_breakdown(targets: Sequence[TargetExecution]) -> TargetT
     )
 
 
+def snapshot_ninja_build_log(log_path: Path) -> set[str]:
+    """capture the current .ninja_log records so a later parse can isolate the next run's targets."""
+    if not log_path.is_file():
+        return set()
+
+    with open(log_path, "r", encoding="utf-8", errors="replace") as log_file:
+        return {stripped for raw_line in log_file if (stripped := raw_line.strip()) and not stripped.startswith("#")}
+
+
 def parse_ninja_build_log(
     log_path: Path,
-    previous_line_count: int = 0,
+    previous_entries: AbstractSet[str] | None = None,
 ) -> list[TargetExecution]:
     """extract targets built during the current run from .ninja_log.
 
-    Ninja appends target completion records to .ninja_log on incremental builds instead of
-    truncating the file. skipping lines up to previous_line_count isolates targets executed
-    in the most recent invocation.
+    Ninja appends target completion records on incremental builds, but it also periodically
+    recompacts the log, rewriting it as one deduplicated record per output. positional offsets
+    are therefore unstable across runs, so records are isolated by diffing against a snapshot
+    taken before the build; recompaction preserves surviving records verbatim.
     """
     if not log_path.is_file():
         return []
 
+    seen_entries = previous_entries if previous_entries is not None else frozenset()
     target_executions: list[TargetExecution] = []
     with open(log_path, "r", encoding="utf-8", errors="replace") as log_file:
-        for line_index, raw_line in enumerate(log_file):
-            if line_index < max(0, previous_line_count - 1):
-                continue
+        for raw_line in log_file:
             line = raw_line.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith("#") or line in seen_entries:
                 continue
             parts = line.split("\t")
             if len(parts) < 5:
