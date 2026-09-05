@@ -17,6 +17,15 @@ code.is_inline = True
 b.is_inline = True
 
 
+SCENARIO_RATIONALES: dict[str, str] = {
+    "clean": "Establishes the full-build baseline, including every module interface, sample, and link target.",
+    "touch-root-interface": "Models a change to Vulkan-Hpp's public API boundary and its broadest incremental dependency fan-out.",
+    "touch-core-header": "Measures the effect of changing macros shared by the core public headers and module interface.",
+    "touch-intermediate-interface": "Models a shared sample utility change that affects an intermediate layer, rather than the Vulkan-Hpp core.",
+    "touch-cpp": "Provides the narrow incremental baseline for a change confined to one leaf translation unit.",
+}
+
+
 def get_scenario_components(scenario_id: str, default_title: str = "") -> list[Any]:
     """return list of string and dominate code elements representing the scenario title."""
     if scenario_id == "touch-root-interface":
@@ -56,6 +65,7 @@ def generate_html_report(
     config_display_names: dict[str, str],
     comparison_scenario: str = "touch-root-interface",
     formatter: SIUnitFormatter | None = None,
+    cli_arguments: Sequence[str] | None = None,
 ) -> None:
     """generate an html benchmark report using dominate and tabulate."""
     unit_formatter = formatter or SIUnitFormatter(unit="s", precision=3)
@@ -287,57 +297,40 @@ def generate_html_report(
     with document:
         h1("Benchmark report: C++20 modules vs headers and PCH")
 
+        h2("Environment and command")
         with ul():
             li("Compiler: ", code(compiler_info))
             li(code("cmake"), f": {cmake_path} (v1.1 instrumentation)")
-            li(
-                "Compiler options: ",
-                code("-std=c++20"),
-                " ",
-                code("-ftime-trace"),
-                " ",
-                code("-fmodules-reduced-bmi"),
-                " (linker: ",
-                code("LLD"),
-                ")",
-            )
-            li(f"Sampling: {iteration_count} runs per scenario")
+            li("CLI arguments: ", code(" ".join(cli_arguments) if cli_arguments else "not recorded"))
 
+        h2("Methodology")
         p(
-            f"""Methodology: Statistical sampling over {iteration_count} runs per scenario.
-Compiler phase timings extracted via """,
+            f"""Each configuration runs every selected scenario {iteration_count} times. For incremental scenarios, an initial build establishes the baseline, then the named source file is touched before each measured build. The clean scenario removes build outputs before every measured build. Each result reports compiler CPU time from """,
             code("cmake"),
-            """ instrumentation API (""",
+            """ instrumentation and wall-clock time for the full """,
+            code("cmake --build"),
+            """ invocation. Compiler phase timings are collected from """,
             code("trace/trace-*.json"),
             """ and """,
             code("clang -ftime-trace"),
-            """).
-Thread timelines generated via """,
-            code("ninjatracing"),
-            """.
-C++20 module interface units compiled with """,
-            code("-fmodules-reduced-bmi"),
-            """.
-Linker configured via """,
-            code("CMAKE_LINKER_TYPE=LLD"),
-            """.
-Precompiled headers disabled for modules (""",
-            code("VULKAN_HPP_PRECOMPILE=OFF"),
-            """), and module scanning disabled for headers (""",
-            code("CMAKE_CXX_SCAN_FOR_MODULES=OFF"),
-            """).""",
+            """. Modules, precompiled headers, and textual headers use the same source tree and build targets so their rebuild work can be compared directly.""",
         )
 
+        h3("Scenarios")
+        with ul():
+            for scenario_id, scenario_title in scenarios:
+                li(
+                    *get_scenario_components(scenario_id, scenario_title),
+                    ": ",
+                    SCENARIO_RATIONALES.get(scenario_id, "Measures the selected rebuild scope."),
+                )
+
         if summary_html is not None:
-            h2("Summary")
-            scenario_count = len(scenarios)
+            h2("Highlighted scenario")
             p(
-                f"""A total of {scenario_count} benchmark scenarios were evaluated across clean builds and incremental rebuilds.
-The primary comparison scenario is """,
+                "The primary comparison is ",
                 *get_scenario_components(primary_scenario_id, primary_scenario_title),
-                """.
-Rebuilding the core interface boundary measures the cost of modifying shared API declarations across all samples.
-C++20 modules isolate downstream translation units through binary built module interface (BMI) artifacts, eliminating redundant abstract syntax tree (AST) re-parsing across parallel build jobs.""",
+                ". It represents a broadly visible API change, making it a useful concrete example of how the three build approaches behave when a shared interface changes.",
             )
             raw(summary_html)
 
