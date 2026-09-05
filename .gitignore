@@ -1,0 +1,6 @@
+out/
+.venv/
+__pycache__/
+*.pyc
+typings/
+.vscode/

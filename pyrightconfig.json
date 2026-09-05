@@ -1,0 +1,11 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "stubPath": ".venv/typings",
+  "include": [
+    "scripts"
+  ],
+  "extraPaths": [
+    "scripts"
+  ]
+}
