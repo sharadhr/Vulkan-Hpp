@@ -22,14 +22,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--clang", type=str, default=DEFAULT_CLANG, help="Path to clang++ executable")
     parser.add_argument(
         "--build-base",
-        type=str,
-        default=str(ROOT_DIR / "out" / "build"),
+        type=Path,
+        default=ROOT_DIR / "out" / "build",
         help="Base directory for build configs",
     )
     parser.add_argument(
         "--report-dir",
-        type=str,
-        default=str(ROOT_DIR / "out" / "benchmark"),
+        type=Path,
+        default=ROOT_DIR / "out" / "benchmark",
         help="Directory for reports and traces",
     )
     parser.add_argument(
@@ -46,19 +46,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--import-log",
-        type=str,
+        type=Path,
         default=None,
         help="Import run data from existing log file and skip builds",
     )
     parser.add_argument(
         "--import-data",
-        type=str,
+        type=Path,
         default=None,
         help="Import run data from JSON file and skip builds",
     )
     parser.add_argument(
         "--export-data",
-        type=str,
+        type=Path,
         default=None,
         help="Export run data to JSON file",
     )
@@ -109,8 +109,8 @@ def main() -> None:
     """parse command-line arguments and orchestrate benchmark execution."""
     args = parse_args()
 
-    build_base = Path(args.build_base).resolve()
-    report_dir = Path(args.report_dir).resolve()
+    build_base = args.build_base.resolve()
+    report_dir = args.report_dir.resolve()
     traces_dir = report_dir / "traces"
     plots_dir = report_dir / "plots"
 
@@ -134,6 +134,7 @@ Report directory: {report_dir}
 """
     print(suite_banner)
 
+    # Preserve canonical ordering while allowing callers to run a focused subset.
     active_scenarios = [
         scenario
         for scenario in SCENARIO_DEFINITIONS
@@ -141,19 +142,20 @@ Report directory: {report_dir}
     ]
 
     if args.import_log:
+        # Imports intentionally skip configuration and builds so historical runs remain reproducible.
         print(f"Importing run data from log: {args.import_log}")
-        suite.import_log(Path(args.import_log))
+        suite.import_log(args.import_log)
     elif args.import_data:
         print(f"Importing run data from JSON: {args.import_data}")
-        suite.import_data_json(Path(args.import_data))
+        suite.import_data_json(args.import_data)
     else:
-        # 1. configure build trees with CMake instrumentation
+        # Fresh configuration prevents cache state from making one configuration inherit another's settings.
         for config_key in args.configs:
             configuration = suite.configs[config_key]
             if not suite.configure_build(configuration, fresh_configure=True):
                 sys.exit(1)
 
-        # 2. execute benchmark scenarios
+        # Run every scenario per configuration to avoid mixing artifacts between build strategies.
         for config_key in args.configs:
             configuration = suite.configs[config_key]
             build_directory = suite.out_base_dir / configuration.out_dir_name
@@ -179,19 +181,19 @@ Report directory: {report_dir}
                     )
                 suite.results.extend(scenario_runs)
 
-    # 3. export measurements to JSON
+    # Persist raw samples before reduction so reports can be regenerated without rebuilding.
     data_json_path = (
-        Path(args.export_data) if args.export_data else report_dir / "benchmark_data.json"
+        args.export_data if args.export_data else report_dir / "benchmark_data.json"
     )
     suite.export_data_json(data_json_path)
     print(f"Exported benchmark data to: {data_json_path}")
 
-    # 4. compute statistics and gather trace profiles
+    # Trace collection follows reduction because the report consumes both statistics and retained artifacts.
     stats = suite.calculate_stats()
     suite.collect_trace_data(traces_dir)
     print(f"\nCollected trace data and Ninjatracing profiles in: {traces_dir}")
 
-    # 5. generate vector charts
+    # SVG preserves timing detail while keeping the report portable.
     plots = generate_svg_visualizations(
         stats,
         plots_dir,
@@ -199,7 +201,7 @@ Report directory: {report_dir}
     )
     print(f"Generated SVG box-and-whisker plots in: {plots_dir} ({len(plots)} plots)")
 
-    # 6. generate html report
+    # The report records invocation arguments alongside measurements for later interpretation.
     report_path = report_dir / "benchmark_report.html"
     config_display_names = {
         config_key: config_object.display_name
@@ -217,7 +219,7 @@ Report directory: {report_dir}
     )
     print(f"Benchmark report generated: {report_path}")
 
-    # print primary comparison summary to console for rapid terminal inspection
+    # Keep the representative comparison visible in CI and terminal-only runs.
     comparisons = compare_scenarios(stats, active_scenarios)
     primary_scenario_id = (
         "touch-root-interface"

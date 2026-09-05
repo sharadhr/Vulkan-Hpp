@@ -77,7 +77,7 @@ def get_compiler_identifier(compiler_path: str) -> str:
             text=True,
             check=True,
         )
-        return result.stdout.strip().split("\n")[0]
+        return next(iter(result.stdout.splitlines()), compiler_path)
     except Exception:
         return compiler_path
 
@@ -95,15 +95,18 @@ def get_scenario_touch_file(scenario_name: str, config_name: str) -> Path | None
     - touch-cpp: touches RayTracing.cpp to isolate turnaround time on a leaf translation unit
       without triggering downstream rebuild cascades.
     """
-    if scenario_name == "touch-core-header":
-        return ROOT_DIR / "vulkan" / "vulkan_hpp_macros.hpp"
-    if scenario_name == "touch-root-interface":
-        return ROOT_DIR / "vulkan" / ("vulkan.cppm" if config_name == "modules" else "vulkan.hpp")
-    if scenario_name == "touch-intermediate-interface":
-        return ROOT_DIR / "samples" / "utils" / ("utils.cppm" if config_name == "modules" else "utils.hpp")
-    if scenario_name == "touch-cpp":
-        return ROOT_DIR / "RAII_Samples" / "RayTracing" / "RayTracing.cpp"
-    return None
+    match scenario_name:
+        case "touch-core-header":
+            relative_path = Path("vulkan") / "vulkan_hpp_macros.hpp"
+        case "touch-root-interface":
+            relative_path = Path("vulkan") / ("vulkan.cppm" if config_name == "modules" else "vulkan.hpp")
+        case "touch-intermediate-interface":
+            relative_path = Path("samples") / "utils" / ("utils.cppm" if config_name == "modules" else "utils.hpp")
+        case "touch-cpp":
+            relative_path = Path("RAII_Samples") / "RayTracing" / "RayTracing.cpp"
+        case _:
+            return None
+    return ROOT_DIR / relative_path
 
 
 class BenchmarkSuite:
@@ -222,10 +225,10 @@ class BenchmarkSuite:
         build_directory = self.out_base_dir / config.out_dir_name
         ninja_log_path = build_directory / ".ninja_log"
 
-        # snapshot existing Ninja records so only newly executed targets are attributed to this run
+        # Snapshot before the build: Ninja can compact its append-only-looking log between iterations.
         previous_entries = snapshot_ninja_build_log(ninja_log_path)
 
-        # delete previous traces so only artifacts from this run are parsed
+        # CMake retains instrumentation files; remove them so newest-trace selection cannot cross iterations.
         trace_directory = build_directory / ".cmake" / "instrumentation" / "v1" / "data" / "trace"
         if trace_directory.is_dir():
             for old_trace in trace_directory.glob("trace-*.json"):
@@ -249,13 +252,13 @@ class BenchmarkSuite:
                 file=sys.stderr,
             )
 
-        # parse targets appended during this run
+        # Diff the post-build log against the snapshot so counts describe this iteration alone.
         recent_targets: list[TargetExecution] = parse_ninja_build_log(
             ninja_log_path,
             previous_entries=previous_entries,
         )
 
-        # extract compilation phases from Clang and CMake traces
+        # Ninja supplies target coverage; CMake instrumentation supplies timing because .ninja_log has no durations by phase.
         (
             cmake_duration,
             compiler_time,
@@ -265,7 +268,7 @@ class BenchmarkSuite:
             time_traces,
         ) = parse_cmake_instrumentation_trace(build_directory)
 
-        # prefer direct duration from CMake instrumentation over wall time when available
+        # CMake's span excludes wrapper overhead; retain process timing only when instrumentation is absent.
         effective_wall_time = cmake_duration if cmake_duration > TimeDelta.ZERO else timed_result.wall_time
 
         target_breakdown = (
@@ -327,7 +330,7 @@ class BenchmarkSuite:
         build_directory = self.out_base_dir / config.out_dir_name
         scenario_results: list[BuildRunResult] = []
 
-        # complete an initial build so incremental runs measure only modified dependencies
+        # Establish an up-to-date graph first; otherwise the first touch would also measure unrelated initial work.
         if baseline_first:
             subprocess.run(
                 [self.cmake_binary_path, "--build", str(build_directory)],
