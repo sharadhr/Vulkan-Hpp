@@ -29,6 +29,7 @@ from .parsers import (
     parse_cmake_instrumentation_trace,
     parse_ninja_build_log,
     resolve_event_trace_path,
+    snapshot_ninja_build_log,
 )
 from .plots import generate_svg_visualizations, render_grouped_boxplot
 from .report import generate_html_report, generate_markdown_report
@@ -68,6 +69,7 @@ __all__ = [
     "compare_scenarios",
     "make_comparison_row",
     "parse_ninja_build_log",
+    "snapshot_ninja_build_log",
     "parse_clang_ftime_trace",
     "find_latest_cmake_trace",
     "resolve_event_trace_path",
