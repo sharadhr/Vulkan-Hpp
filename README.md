@@ -46,6 +46,7 @@ All other documentation is in [`docs`](./docs/):
 2. [Usage](./docs/Usage.md) explains how to use the various features of Vulkan-Hpp with detailed examples.
 3. [Configuration](./docs/Configuration.md) lists all the options available to configure the behaviour and features of Vulkan-Hpp.
 4. [Handles](./docs/Handles.md) is an overview of the three different families of handles provided by Vulkan-Hpp. These allow semantics similar to `std::unique_ptr`, `std::shared_ptr`, and also `vk::raii` types, which are [RAII](https://en.cppreference.com/w/cpp/language/raii.html) (resource acquisition is initialisation) handles that offer object-oriented semantics for Vulkan handles.
+5. [Benchmarks](./docs/Benchmarks.md) describes how to run build benchmarks comparing C++20 modules, precompiled headers, and header-only builds.
 
 > [!NOTE]
 >
