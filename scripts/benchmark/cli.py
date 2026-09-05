@@ -213,6 +213,7 @@ Report directory: {report_dir}
         cmake_path=args.cmake,
         iteration_count=args.runs,
         config_display_names=config_display_names,
+        cli_arguments=sys.argv,
     )
     print(f"Benchmark report generated: {report_path}")
 
