@@ -132,6 +132,7 @@ def generate_html_report(
     ]
     wall_html = render_table_html(rows_wall_table, headers_wall_table)
 
+    # The exemplar is optional because focused runs may omit a complete three-way comparison.
     summary_html: str | None = None
     if primary_comparison and modules_primary_stats and pch_primary_stats and headers_primary_stats:
         compiler_comparison = primary_comparison.compiler
@@ -170,8 +171,10 @@ def generate_html_report(
         "Scans",
         "Dyndep",
         "Links",
+        "Custom commands",
         "Total targets",
     ]
+    # Render phase counts separately so module graph maintenance remains visible beside compilation work.
     target_html_by_scenario: dict[str, str] = {}
     for scenario_id, _ in scenarios:
         rows_target = [
@@ -181,6 +184,7 @@ def generate_html_report(
                 str(scenario_stats.target_breakdown.scans),
                 str(scenario_stats.target_breakdown.dynamic_dependencies),
                 str(scenario_stats.target_breakdown.links),
+                str(scenario_stats.target_breakdown.custom_commands),
                 str(scenario_stats.target_breakdown.total or int(scenario_stats.targets_mean)),
             ]
             for configuration_id in ["modules", "pch", "headers"]
@@ -199,9 +203,11 @@ def generate_html_report(
         "Scans",
         "Dyndep",
         "Links",
+        "Custom commands",
         "Total targets",
         "Avg time / target (s)",
     ]
+    # Combine timings and edge counts only after statistics have been reduced across equal run sets.
     phase_html_by_scenario: dict[str, str] = {}
     for scenario_id, _ in scenarios:
         rows_phase = [
@@ -215,6 +221,7 @@ def generate_html_report(
                 str(scenario_stats.target_breakdown.scans),
                 str(scenario_stats.target_breakdown.dynamic_dependencies),
                 str(scenario_stats.target_breakdown.links),
+                str(scenario_stats.target_breakdown.custom_commands),
                 str(scenario_stats.target_breakdown.total or int(scenario_stats.targets_mean)),
                 unit_formatter.format_value(scenario_stats.avg_compiler_time_per_target),
             ]
