@@ -1,0 +1,29 @@
+[project]
+name = "vulkan-hpp-benchmarks"
+version = "0.1.0"
+description = "Benchmark suite for Vulkan-Hpp C++20 modules vs headers and PCH"
+readme = "docs/Benchmarks.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dominate>=2.9.0",
+    "matplotlib>=3.10.0",
+    "sciform>=0.39.1",
+    "tabulate>=0.10.0",
+    "whenever>=0.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyright[nodejs]>=1.1.411",
+    "types-tabulate>=0.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyright[nodejs]>=1.1.411",
+    "types-tabulate>=0.10.0",
+]
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
