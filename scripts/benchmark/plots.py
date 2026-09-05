@@ -3,8 +3,9 @@
 from collections.abc import Sequence
 import os
 from pathlib import Path
+import tempfile
 
-os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp") / "matplotlib"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "matplotlib"))
 import matplotlib
 matplotlib.use("Agg")
 matplotlib.rcParams["svg.fonttype"] = "none"
@@ -66,6 +67,7 @@ def embed_svg_theme_css(svg_path: Path) -> None:
     }
   </style>
 """
+    # Matplotlib emits fixed SVG colors; inject overrides so standalone report assets honor dark mode.
     file_content = svg_path.read_text(encoding="utf-8")
     if "<defs>" in file_content:
         file_content = file_content.replace("<defs>", "<defs>" + svg_stylesheet, 1)
@@ -164,6 +166,7 @@ def generate_svg_visualizations(
     scenario_labels = [scenario_title for _, scenario_title in scenarios]
 
     def extract_metric_series(metric_name: str) -> list[tuple[str, str, list[list[float]]]]:
+        # Keep an empty scenario visible as zero rather than shifting configuration groups across the x-axis.
         return [
             (
                 configuration_key,
@@ -209,7 +212,7 @@ def generate_svg_visualizations(
     )
     generated_plots["scenarios_wall"] = wall_plot_path
 
-    # 3. stacked bar chart: compiler phase breakdown for clean builds
+    # Clean builds expose total frontend/backend cost without incremental dependency fan-out.
     clean_stats = {
         configuration_key: stats.get((configuration_key, "clean"))
         for configuration_key in configuration_keys

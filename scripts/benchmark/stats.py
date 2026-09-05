@@ -25,6 +25,7 @@ def compute_scenario_stats(
     if not runs:
         return ScenarioStats.empty()
 
+    # A shared mapping keeps every reported phase reduced from the same run population.
     computed_metrics: dict[str, MetricStats] = {
         metric_name: MetricStats.compute([getattr(build_run, attribute_name) for build_run in runs])
         for metric_name, attribute_name in METRIC_ATTRIBUTE_MAP.items()
@@ -52,6 +53,7 @@ def calculate_all_stats(
     results: Sequence[BuildRunResult],
 ) -> dict[tuple[str, str], ScenarioStats]:
     """partition runs by configuration and scenario, then compute statistical summaries for each group."""
+    # Do not pool configurations: each group is one independent build strategy and rebuild scope.
     grouped_runs: dict[tuple[str, str], list[BuildRunResult]] = {}
     for build_run in results:
         grouped_runs.setdefault((build_run.config_name, build_run.scenario_name), []).append(build_run)
@@ -75,6 +77,7 @@ def compare_scenarios(
         pch_key = ("pch", scenario_id)
         headers_key = ("headers", scenario_id)
 
+        # Speedup is meaningful only for complete three-way comparisons.
         if modules_key not in stats or pch_key not in stats or headers_key not in stats:
             continue
 

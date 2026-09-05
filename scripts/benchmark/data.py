@@ -29,6 +29,7 @@ def export_data_json(results: Sequence[BuildRunResult], json_path: Path) -> None
             "total_targets": build_run.target_breakdown.total or build_run.targets_built,
         }
 
+    # Exclude scaling probes: they use different dimensions and would distort scenario comparisons.
     dataset = {
         "scenario_results": [
             serialize_run(build_run)
@@ -49,6 +50,7 @@ def import_data_json(json_path: Path) -> list[BuildRunResult]:
 
     def deserialize_run(record: dict[str, Any]) -> BuildRunResult:
         targets_built = int(record["targets_built"])
+        # Older datasets recorded only a total; retain them as compilation-only rather than rejecting history.
         compilations = int(record.get("compilations", targets_built))
         scans = int(record.get("scans", 0))
         dynamic_dependencies = int(record.get("dynamic_dependencies", 0))
@@ -87,6 +89,7 @@ def import_log(log_path: Path) -> list[BuildRunResult]:
         raise FileNotFoundError(f"Log file not found: {log_path}")
 
     log_content = log_path.read_text(encoding="utf-8", errors="replace")
+    # The console format is a compatibility input, so parse only stable machine-generated summary lines.
     pattern = re.compile(
         r"\[(?P<configuration>modules|pch|headers)\s*:\s*(?P<scenario>[^\]]+)\]\s+Run\s+(?P<run_index>\d+)/(?P<total_runs>\d+)\.\.\.\s*\n"
         r"\s*->\s+Compiler CPU:\s+(?P<compiler>[\d\.]+)s\s+\(Frontend:\s+(?P<frontend>[\d\.]+)s,\s+Backend:\s+(?P<backend>[\d\.]+)s\)\s+\|\s+Wall:\s+(?P<wall>[\d\.]+)s\s+\|\s+Built:\s+(?P<targets>[\d]+)\s+targets"
@@ -110,6 +113,7 @@ def import_log(log_path: Path) -> list[BuildRunResult]:
                 wall_time=to_delta(s=float(match_groups["wall"])),
                 exit_code=0,
                 targets_built=targets_count,
+                # Logs predate phase accounting; represent their sole total without inventing a breakdown.
                 target_breakdown=TargetTypeBreakdown(compilations=targets_count),
             )
         )
