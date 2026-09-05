@@ -75,6 +75,7 @@ class TargetTypeBreakdown:
         """compute average integer target counts across a sequence of breakdowns."""
         if not breakdowns:
             return cls()
+        # Round each phase independently so displayed integer categories still sum to the displayed total.
         return cls(
             compilations=round(statistics.mean([breakdown.compilations for breakdown in breakdowns])),
             scans=round(statistics.mean([breakdown.scans for breakdown in breakdowns])),
@@ -168,6 +169,7 @@ class ScenarioStats:
     @property
     def avg_compiler_time_per_target(self) -> TimeDelta:
         """calculate average compiler CPU duration per compilation target."""
+        # Use compilation count when available; scans and links do not contribute to Clang CPU time.
         divisor = float(self.target_breakdown.compilations) if self.target_breakdown.compilations > 0 else (self.targets_mean if self.targets_mean > 0 else 1.0)
         return to_delta(ns=self.compiler.mean.total("nanoseconds") / divisor)
 
