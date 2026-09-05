@@ -85,6 +85,7 @@ def render_grouped_boxplot(
     output_path: Path,
     box_group_width: float = 0.25,
     label_rotation: float | None = None,
+    logarithmic_y_axis: bool = False,
 ) -> None:
     """draw a grouped boxplot comparing configurations side-by-side across scenarios."""
     x_indices = list(range(len(x_labels)))
@@ -143,6 +144,9 @@ def render_grouped_boxplot(
     if x_axis_title:
         axis.set_xlabel(x_axis_title, fontsize=11, fontweight="bold")
     axis.set_ylabel(y_axis_title, fontsize=11, fontweight="bold")
+    if logarithmic_y_axis:
+        # Rebuild costs span orders of magnitude; log scale keeps leaf and full builds readable together.
+        axis.set_yscale("log")
     axis.set_title(plot_title, fontsize=13, fontweight="bold")
     axis.legend(legend_boxes, legend_labels, loc="upper right", framealpha=0.95)
     axis.grid(True, linestyle="--", alpha=0.5, axis="y")
@@ -196,6 +200,7 @@ def generate_svg_visualizations(
         "Compiler CPU time across scenarios",
         compiler_plot_path,
         label_rotation=25.0,
+        logarithmic_y_axis=True,
     )
     generated_plots["scenarios_compiler"] = compiler_plot_path
 
