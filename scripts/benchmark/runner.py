@@ -31,6 +31,7 @@ from .parsers import (
     extract_target_type_breakdown,
     parse_cmake_instrumentation_trace,
     parse_ninja_build_log,
+    snapshot_ninja_build_log,
 )
 from .stats import calculate_all_stats
 
@@ -221,11 +222,8 @@ class BenchmarkSuite:
         build_directory = self.out_base_dir / config.out_dir_name
         ninja_log_path = build_directory / ".ninja_log"
 
-        # track Ninja line offset before building to isolate newly executed targets
-        previous_line_count = 0
-        if ninja_log_path.is_file():
-            with open(ninja_log_path, "r", encoding="utf-8", errors="replace") as log_file:
-                previous_line_count = sum(1 for _ in log_file)
+        # snapshot existing Ninja records so only newly executed targets are attributed to this run
+        previous_entries = snapshot_ninja_build_log(ninja_log_path)
 
         # delete previous traces so only artifacts from this run are parsed
         trace_directory = build_directory / ".cmake" / "instrumentation" / "v1" / "data" / "trace"
@@ -254,7 +252,7 @@ class BenchmarkSuite:
         # parse targets appended during this run
         recent_targets: list[TargetExecution] = parse_ninja_build_log(
             ninja_log_path,
-            previous_line_count=previous_line_count,
+            previous_entries=previous_entries,
         )
 
         # extract compilation phases from Clang and CMake traces
