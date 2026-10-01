@@ -131,8 +131,8 @@ class BenchmarkSuite:
 
         # configuration variants:
         # - modules: C++20 named modules enabled with reduced BMI emission.
-        #   CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: UUID gate required by CMake 3.30+ to allow
-        #   standard library module imports (import std;).
+        #   CMake 4.5+ provides standard library module imports (import std;) without an
+        #   experimental UUID gate.
         #   CMAKE_LINKER_TYPE=LLD: configures lld linker across all targets.
         # - pch: precompiled header enabled for vulkan.hpp and vulkan_raii.hpp.
         #   CMAKE_CXX_SCAN_FOR_MODULES=OFF: avoids clang-scan-deps overhead in non-module builds.
@@ -146,7 +146,6 @@ class BenchmarkSuite:
                     "--preset=samples",
                     "-DVULKAN_HPP_BUILD_CXX_MODULE=ON",
                     "-DVULKAN_HPP_PRECOMPILE=OFF",
-                    "-DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=25d6f6aa-be65-4692-b44e-87b23e96d4e1",
                     f"-DCMAKE_CXX_COMPILER={self.clang_binary_path}",
                     "-DCMAKE_CXX_STANDARD=20",
                     "-DCMAKE_CXX_FLAGS=-ftime-trace -fmodules-reduced-bmi -Wno-reduced-bmi-output-overrided -Qunused-arguments",
