@@ -6207,12 +6207,15 @@ VULKAN_HPP_EXPORT namespace VULKAN_HPP_NAMESPACE
       case StructureType::eDataGraphPipelineSessionNeuralStatisticsCreateInfoARM: return "DataGraphPipelineSessionNeuralStatisticsCreateInfoARM";
       case StructureType::ePhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM:
         return "PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM";
-      case StructureType::ePhysicalDevicePrimitiveRestartIndexFeaturesEXT       : return "PhysicalDevicePrimitiveRestartIndexFeaturesEXT";
-      case StructureType::ePhysicalDeviceImageTilingControlFeaturesEXT          : return "PhysicalDeviceImageTilingControlFeaturesEXT";
-      case StructureType::eImageTilingControlCreateInfoEXT                      : return "ImageTilingControlCreateInfoEXT";
-      case StructureType::ePhysicalDeviceCooperativeMatrixDecodeVectorFeaturesNV: return "PhysicalDeviceCooperativeMatrixDecodeVectorFeaturesNV";
-      case StructureType::ePhysicalDevicePrivateDataBaseHandleFeaturesNV        : return "PhysicalDevicePrivateDataBaseHandleFeaturesNV";
-      case StructureType::ePhysicalDeviceInfoPropertiesINTEL                    : return "PhysicalDeviceInfoPropertiesINTEL";
+      case StructureType::ePhysicalDevicePrimitiveRestartIndexFeaturesEXT           : return "PhysicalDevicePrimitiveRestartIndexFeaturesEXT";
+      case StructureType::ePhysicalDeviceVertexAddressBindingUnrestrictedFeaturesEXT: return "PhysicalDeviceVertexAddressBindingUnrestrictedFeaturesEXT";
+      case StructureType::ePhysicalDeviceMaintenance12FeaturesKHR                   : return "PhysicalDeviceMaintenance12FeaturesKHR";
+      case StructureType::ePhysicalDeviceMaintenance12PropertiesKHR                 : return "PhysicalDeviceMaintenance12PropertiesKHR";
+      case StructureType::ePhysicalDeviceImageTilingControlFeaturesEXT              : return "PhysicalDeviceImageTilingControlFeaturesEXT";
+      case StructureType::eImageTilingControlCreateInfoEXT                          : return "ImageTilingControlCreateInfoEXT";
+      case StructureType::ePhysicalDeviceCooperativeMatrixDecodeVectorFeaturesNV    : return "PhysicalDeviceCooperativeMatrixDecodeVectorFeaturesNV";
+      case StructureType::ePhysicalDevicePrivateDataBaseHandleFeaturesNV            : return "PhysicalDevicePrivateDataBaseHandleFeaturesNV";
+      case StructureType::ePhysicalDeviceInfoPropertiesINTEL                        : return "PhysicalDeviceInfoPropertiesINTEL";
       case StructureType::ePhysicalDeviceBufferDeviceAddressAllocationAlignmentFeaturesVALVE:
         return "PhysicalDeviceBufferDeviceAddressAllocationAlignmentFeaturesVALVE";
       case StructureType::ePhysicalDeviceBufferDeviceAddressAllocationAlignmentPropertiesVALVE:
@@ -8278,6 +8281,7 @@ VULKAN_HPP_EXPORT namespace VULKAN_HPP_NAMESPACE
       case DriverId::eAPEX                     : return "APEX";
       case DriverId::eNikki                    : return "Nikki";
       case DriverId::eMomoten                  : return "Momoten";
+      case DriverId::eAuroraBorealis           : return "AuroraBorealis";
       default                                  : return "invalid ( " + toHexString( static_cast<uint32_t>( value ) ) + " )";
     }
   }

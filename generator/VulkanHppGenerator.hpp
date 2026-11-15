@@ -13,8 +13,6 @@
 #include <tinyxml2.h>
 #include <vector>
 
-constexpr size_t INVALID_INDEX = static_cast<size_t>( ~0 );
-
 template <typename BitType>
 class Flags
 {
@@ -183,120 +181,6 @@ private:
     std::map<std::string, TypeDefine> values  = {};
   };
 
-  struct EnumConstantData
-  {
-    std::string name    = {};
-    std::string value   = {};
-    int         xmlLine = {};
-  };
-
-  struct RequireFeature
-  {
-    std::vector<std::string> name      = {};
-    std::string              structure = {};
-    int                      xmlLine   = {};
-  };
-
-  struct RemoveData
-  {
-    std::vector<std::string>    commands = {};
-    std::vector<std::string>    enums    = {};
-    std::vector<RequireFeature> features = {};
-    std::vector<std::string>    types    = {};
-    int                         xmlLine  = {};
-  };
-
-  struct RequireData
-  {
-    std::string                   api           = {};
-    std::string                   depends       = {};
-    std::vector<NameLine>         commands      = {};
-    std::vector<EnumConstantData> enumConstants = {};
-    std::vector<NameLine>         constants     = {};
-    std::vector<RequireFeature>   features      = {};
-    std::vector<NameLine>         types         = {};
-    int                           xmlLine       = {};
-  };
-
-  struct DeprecatedCommandData
-  {
-    std::string name         = {};
-    std::string supersededBy = {};
-  };
-
-  struct DeprecatedFeatureData
-  {
-    std::string name      = {};
-    std::string structure = {};
-  };
-
-  struct DeprecatedTypeData
-  {
-    std::string name         = {};
-    std::string supersededBy = {};
-  };
-
-  struct DeprecateData
-  {
-    std::string                        explanationLink = {};
-    std::vector<DeprecatedCommandData> commands        = {};
-    std::vector<DeprecatedFeatureData> features        = {};
-    std::vector<DeprecatedTypeData>    types           = {};
-    int                                xmlLine         = 0;
-  };
-
-  struct ExtensionData
-  {
-    std::string                                               deprecatedBy           = {};
-    bool                                                      isDeprecated           = false;
-    std::string                                               name                   = {};
-    std::string                                               number                 = {};
-    std::string                                               obsoletedBy            = {};
-    std::string                                               platform               = {};
-    std::string                                               promotedTo             = {};
-    std::map<std::string, std::vector<std::set<std::string>>> depends                = {};
-    std::vector<std::string>                                  ratified               = {};
-    std::vector<DeprecateData>                                deprecateData          = {};
-    std::vector<RemoveData>                                   removeData             = {};
-    std::vector<RequireData>                                  requireData            = {};
-    std::vector<std::string>                                  supported              = {};
-    std::string                                               type                   = {};
-    std::vector<RequireData>                                  unsupportedRequireData = {};
-    int                                                       xmlLine                = 0;
-  };
-
-  struct ComponentData
-  {
-    std::string bits          = {};
-    std::string name          = {};
-    std::string numericFormat = {};
-    std::string planeIndex    = {};
-    int         xmlLine       = {};
-  };
-
-  struct PlaneData
-  {
-    std::string compatible    = {};
-    std::string heightDivisor = {};
-    std::string widthDivisor  = {};
-    int         xmlLine       = {};
-  };
-
-  struct FormatData
-  {
-    std::string                blockExtent      = {};
-    std::string                blockSize        = {};
-    std::string                chroma           = {};
-    std::string                classAttribute   = {};
-    std::vector<ComponentData> components       = {};
-    std::string                compressed       = {};
-    std::string                packed           = {};
-    std::vector<PlaneData>     planes           = {};
-    std::string                spirvImageFormat = {};
-    std::string                texelsPerBlock   = {};
-    int                        xmlLine          = {};
-  };
-
   struct HandleData
   {
     std::set<std::string> childrenHandles     = {};
@@ -342,9 +226,7 @@ private:
   void checkFuncPointerCorrectness() const;
   void checkRequireCorrectness() const;
   template <typename RequireType>
-  void checkRequireCorrectness( std::vector<RequireType> const & requireTypes, std::string const & section, std::string const & name ) const;
-  void checkRequireDependenciesCorrectness( FeatureRequire const & featureRequire, std::string const & section, std::string const & name ) const;
-  void checkRequireDependenciesCorrectness( RequireData const & requireData, std::string const & section, std::string const & name ) const;
+  void checkRequireCorrectness( std::vector<RequireType> const & requireTypes ) const;
   template <typename RequireType>
   void checkRequireTypesCorrectness( RequireType const & requireType ) const;
   void checkStructCorrectness() const;
@@ -411,12 +293,12 @@ private:
   void forEachRequiredConstant( std::vector<FeatureRequire> const &                  featureRequires,
                                 std::set<std::string> &                              encounteredConstants,
                                 std::function<void( ConstantValue const & )> const & constantAction ) const;
-  void forEachRequiredConstant( std::vector<RequireData> const &                     requireDatas,
+  void forEachRequiredConstant( std::vector<ExtensionRequire> const &                extensionRequires,
                                 std::set<std::string> &                              encounteredConstants,
                                 std::function<void( ConstantValue const & )> const & constantAction ) const;
-  void forEachRequiredEnumConstant( std::vector<RequireData> const &                        requireData,
-                                    std::set<std::string> &                                 encounteredEnumConstants,
-                                    std::function<void( EnumConstantData const & )> const & enumConstantAction ) const;
+  void forEachRequiredEnumConstant( std::vector<ExtensionRequire> const &                               extensionRequires,
+                                    std::set<std::string> &                                             encounteredEnumConstants,
+                                    std::function<void( ExtensionRequireEnumConstant const & )> const & enumConstantAction ) const;
   template <typename RequireType>
   void                  forEachRequiredHandle( std::vector<RequireType> const &                                          requireTypes,
                                                std::function<void( std::pair<std::string, HandleData> const & )> const & handleAction ) const;
@@ -716,16 +598,16 @@ private:
   std::string generateExtensionsList( std::string const & type ) const;
   std::string generateExtensionTypeTest( std::string const & type ) const;
   std::string generateFormatTraits() const;
-  std::string generateFormatTraitsCases( EnumData const &                                 enumData,
-                                         std::function<bool( FormatData const & )>        predicate,
-                                         std::function<std::string( FormatData const & )> generator ) const;
-  std::string generateFormatTraitsList( EnumData const & enumData, std::function<bool( FormatData const & )> predicate ) const;
+  std::string generateFormatTraitsCases( EnumData const &                             enumData,
+                                         std::function<bool( Format const & )>        predicate,
+                                         std::function<std::string( Format const & )> generator ) const;
+  std::string generateFormatTraitsList( EnumData const & enumData, std::function<bool( Format const & )> predicate ) const;
   template <typename T>
-  std::string generateFormatTraitsSubCases( FormatData const &                                          formatData,
-                                            std::function<std::vector<T> const &( FormatData const & )> accessor,
-                                            std::string const &                                         subCaseName,
-                                            std::function<std::string( T const & subCaseData )>         generator,
-                                            std::string const &                                         defaultReturn ) const;
+  std::string generateFormatTraitsSubCases( Format const &                                          format,
+                                            std::function<std::vector<T> const &( Format const & )> accessor,
+                                            std::string const &                                     subCaseName,
+                                            std::function<std::string( T const & subCaseData )>     generator,
+                                            std::string const &                                     defaultReturn ) const;
   std::string generateFuncPointer( TypeFuncPointer const & funcPointer ) const;
   std::string generateFuncPointers() const;
   std::string generateFunctionPointerCheck( std::string const & function, std::set<std::string> const & requiredBy, bool raii ) const;
@@ -984,8 +866,6 @@ private:
   bool isConstructorCandidate( Param const & paramData, std::string const & handleType ) const;
   bool isDeviceCommand( Command const & command ) const;
   bool isEnumerated( std::string const & type ) const;
-  bool isExtension( std::string const & name ) const;
-  bool isFeature( std::string const & name ) const;
   bool isHandleType( std::string const & type ) const;
   bool isHandleTypeByStructure( std::string const & type ) const;
   bool isLenByStructMember( std::string const & name, std::vector<Param> const & params ) const;
@@ -1032,13 +912,9 @@ private:
   std::string                       m_copyrightMessage;
   DefinesPartition                  m_definesPartition;  // partition defined macros into mutually-exclusive sets of callees, callers, and values
   std::map<std::string, EnumData>   m_enums;
-  std::vector<ExtensionData>        m_extensions;
-  std::map<std::string, FormatData> m_formats;
   std::map<std::string, HandleData> m_handles;
   std::set<std::string>             m_RAIISpecialFunctions;
   std::map<std::string, TypeData>   m_types;
-  std::vector<ExtensionData>        m_unsupportedExtensions;
-  std::vector<Feature>              m_unsupportedFeatures;
   std::string                       m_version;
   Vkxml                             m_vkxml;
 
@@ -1046,11 +922,11 @@ private:
 };
 
 template <typename T>
-std::string VulkanHppGenerator::generateFormatTraitsSubCases( FormatData const &                                          formatData,
-                                                              std::function<std::vector<T> const &( FormatData const & )> accessor,
-                                                              std::string const &                                         subCaseName,
-                                                              std::function<std::string( T const & subCaseData )>         generator,
-                                                              std::string const &                                         defaultReturn ) const
+std::string VulkanHppGenerator::generateFormatTraitsSubCases( Format const &                                          formatData,
+                                                              std::function<std::vector<T> const &( Format const & )> accessor,
+                                                              std::string const &                                     subCaseName,
+                                                              std::function<std::string( T const & subCaseData )>     generator,
+                                                              std::string const &                                     defaultReturn ) const
 {
   std::string const subCasesTemplate = R"(
         switch( ${subCaseName} )
