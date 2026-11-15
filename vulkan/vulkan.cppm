@@ -13,43 +13,18 @@ module;
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_hpp_macros.hpp>
 
-#if !defined( VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING )
-#  define VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING \
-    "\n\tThe Vulkan-Hpp C++ named module is experimental. It is subject to change without prior notice.\n" \
-  "\tTo silence this warning, define the VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING macro.\n" \
-  "\tFor feedback, go to: https://github.com/KhronosGroup/Vulkan-Hpp/issues"
-
-VULKAN_HPP_COMPILE_WARNING( VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING )
-#endif
-
 export module vulkan;
 
 import std;
 
-VULKAN_HPP_STATIC_ASSERT( VK_HEADER_VERSION == 366, "Wrong VK_HEADER_VERSION!" );
+VULKAN_HPP_STATIC_ASSERT( VK_HEADER_VERSION == 368, "Wrong VK_HEADER_VERSION!" );
 
-#if defined( __clang__ )
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Winclude-angled-in-module-purview"
-#elif defined( _MSC_VER )
-#  pragma warning( push )
-#  pragma warning( disable : 5244 )
-#elif defined( __GNUC__ )
-#endif
-
-#include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_extension_inspection.hpp>
-#include <vulkan/vulkan_format_traits.hpp>
-#include <vulkan/vulkan_hash.hpp>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_shared.hpp>
-
-#if defined( __clang__ )
-#  pragma clang diagnostic pop
-#elif defined( _MSC_VER )
-#  pragma warning( pop )
-#elif defined( __GNUC__ )
-#endif
+#include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan_extension_inspection.hpp"
+#include "vulkan/vulkan_format_traits.hpp"
+#include "vulkan/vulkan_hash.hpp"
+#include "vulkan/vulkan_raii.hpp"
+#include "vulkan/vulkan_shared.hpp"
 
 export {
   // This VkFlags type is used as part of a bitfield in some structures.
@@ -1342,6 +1317,12 @@ export {
   using ::PFN_vkCreateUbmSurfaceSEC;
   using ::PFN_vkGetPhysicalDeviceUbmPresentationSupportSEC;
 #endif /*VK_USE_PLATFORM_UBM_SEC*/
+
+  //=== VK_NV_internal_handle ===
+  using ::PFN_vkGetCommandBufferInternalHandleNV;
+  using ::PFN_vkGetDeviceInternalHandleNV;
+  using ::PFN_vkGetPhysicalDeviceInternalHandleNV;
+  using ::PFN_vkGetQueueInternalHandleNV;
 
   //=== VK_EXT_primitive_restart_index ===
   using ::PFN_vkCmdSetPrimitiveRestartIndexEXT;

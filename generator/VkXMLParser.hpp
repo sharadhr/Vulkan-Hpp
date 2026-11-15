@@ -13,6 +13,8 @@
 #include <variant>
 #include <vector>
 
+constexpr size_t INVALID_INDEX = static_cast<size_t>( ~0 );
+
 struct Platform
 {
   std::string name    = {};
@@ -36,24 +38,27 @@ struct TypeDefine
   std::vector<std::string> params             = {};
   std::string              possibleDefinition = {};
   std::string              require            = {};
+  std::string              requiredBy         = {};
   int                      xmlLine            = {};
 };
 
 struct TypeBaseType
 {
-  std::string name    = {};
-  Type        type    = {};
-  int         xmlLine = {};
+  std::string           name       = {};
+  std::set<std::string> requiredBy = {};
+  Type                  type       = {};
+  int                   xmlLine    = {};
 };
 
 struct TypeBitmask
 {
-  std::string                name    = {};
-  std::string                type    = {};
-  std::vector<std::string>   api     = {};
-  std::string                require = {};
-  std::map<std::string, int> aliases = {};
-  int                        xmlLine = {};
+  std::string                name       = {};
+  std::string                type       = {};
+  std::vector<std::string>   api        = {};
+  std::string                require    = {};
+  std::set<std::string>      requiredBy = {};
+  std::map<std::string, int> aliases    = {};
+  int                        xmlLine    = {};
 };
 
 struct Alias
@@ -69,10 +74,11 @@ using BitmaskVariant = std::variant<TypeBitmask, Alias>;
 struct TypeHandle
 {
   std::string                name        = {};
+  std::map<std::string, int> aliases     = {};
   std::string                objTypeEnum = {};
   std::string                parent      = {};
+  std::set<std::string>      requiredBy  = {};
   Type                       type        = {};
-  std::map<std::string, int> aliases     = {};
   int                        xmlLine     = {};
 };
 
@@ -116,12 +122,13 @@ struct EnumValue
 
 struct TypeEnum
 {
-  std::string                name     = {};
-  std::map<std::string, int> aliases  = {};
-  std::string                bitwidth = {};
-  std::string                category = {};
-  std::vector<EnumValue>     values   = {};
-  int                        xmlLine  = {};
+  std::string                name       = {};
+  std::map<std::string, int> aliases    = {};
+  std::string                bitwidth   = {};
+  std::string                category   = {};
+  std::set<std::string>      requiredBy = {};
+  std::vector<EnumValue>     values     = {};
+  int                        xmlLine    = {};
 };
 
 using EnumVariant = std::variant<TypeEnum, Alias>;
@@ -138,6 +145,7 @@ struct TypeFuncPointer
   std::string                   name       = {};
   std::vector<FuncPointerParam> params     = {};
   std::string                   require    = {};
+  std::string                   requiredBy = {};
   Type                          returnType = {};
   int                           xmlLine    = {};
 };
@@ -176,6 +184,7 @@ struct TypeStruct
   std::set<std::string>      extendedBy        = {};  // derived from the structExtends member
   std::vector<std::string>   structExtends     = {};
   std::vector<StructMember>  members           = {};
+  std::set<std::string>      requiredBy        = {};
   bool                       requiredLimitType = {};
   bool                       returnedOnly      = {};
   int                        xmlLine           = {};
@@ -200,6 +209,7 @@ struct TypeUnion
   std::string                name         = {};
   std::map<std::string, int> aliases      = {};
   std::vector<UnionMember>   members      = {};
+  std::set<std::string>      requiredBy   = {};
   bool                       returnedOnly = {};
   int                        xmlLine      = {};
 };
@@ -261,7 +271,7 @@ struct Component
   std::string bits          = {};
   std::string name          = {};
   std::string numericFormat = {};
-  std::string planeIndex    = {};
+  size_t      planeIndex    = INVALID_INDEX;
   int         xmlLine       = {};
 };
 
@@ -477,7 +487,7 @@ struct ExtensionRequire
   std::string                              api        = {};
   std::vector<NameElement>                 commands   = {};
   std::string                              comment    = {};
-  std::string                              depends    = {};
+  std::vector<std::string>                 depends    = {};
   std::vector<ExtensionRequireEnumVariant> enums      = {};
   std::vector<MultiFeatureElement>         features   = {};
   std::vector<PropertyElement>             properties = {};
@@ -487,6 +497,7 @@ struct ExtensionRequire
 
 struct Extension
 {
+  std::string                                               name         = {};
   std::string                                               author       = {};
   std::string                                               comment      = {};
   std::vector<std::string>                                  contacts     = {};
@@ -494,9 +505,8 @@ struct Extension
   std::string                                               deprecatedBy = {};
   std::vector<Deprecate>                                    deprecates   = {};
   bool                                                      isDeprecated = {};
-  std::string                                               name         = {};
   bool                                                      noFeatures   = {};
-  std::string                                               number       = {};
+  uint32_t                                                  number       = {};
   std::string                                               obsoletedBy  = {};
   std::string                                               platform     = {};
   std::string                                               promotedTo   = {};
@@ -765,27 +775,27 @@ using VideoCodecVariant = std::variant<VideoCodecExtend, VideoCodecRegular>;
 struct Plane
 {
   std::string compatible    = {};
-  std::string heightDivisor = {};
-  std::string index         = {};
-  std::string planeIndex    = {};
-  std::string widthDivisor  = {};
+  size_t      heightDivisor = {};
+  size_t      index         = {};
+  size_t      planeIndex    = INVALID_INDEX;
+  size_t      widthDivisor  = {};
   int         xmlLine       = {};
 };
 
 struct Format
 {
-  std::vector<std::string> blockExtent      = {};
-  std::string              blockSize        = {};
-  std::string              chroma           = {};
-  std::string              classAttribute   = {};
-  std::vector<Component>   components       = {};
-  std::string              compressed       = {};
-  std::string              name             = {};
-  std::string              packed           = {};
-  std::vector<Plane>       planes           = {};
-  NameElement              spirvImageFormat = {};
-  std::string              texelsPerBlock   = {};
-  int                      xmlLine          = {};
+  std::string            name             = {};
+  std::vector<size_t>    blockExtent      = {};
+  size_t                 blockSize        = {};
+  size_t                 chroma           = {};
+  std::string            className        = {};
+  std::vector<Component> components       = {};
+  std::string            compressed       = {};
+  size_t                 packed           = INVALID_INDEX;
+  std::vector<Plane>     planes           = {};
+  NameElement            spirvImageFormat = {};
+  size_t                 texelsPerBlock   = {};
+  int                    xmlLine          = {};
 };
 
 struct DynamicStateCmd
